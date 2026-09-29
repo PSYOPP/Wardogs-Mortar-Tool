@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mortar Calculator · Wardogs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Ccircle%20cx='12'%20cy='12'%20r='8'%20fill='none'%20stroke='%23ffb84d'%20stroke-width='2'/%3E%3Cpath%20d='M12%201v6M12%2017v6M1%2012h6M17%2012h6'%20stroke='%23ffb84d'%20stroke-width='2'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#12140d; --panel:#1b1f14; --panel2:#232819; --line:#3a4128;
+    --text:#e8e6d9; --muted:#a3a48d; --accent:#ffb84d;
+    --good:#8fbf5a; --arty:#ffb84d; --bad:#e06c55;
+    --mono:ui-monospace,'Cascadia Code',Consolas,Menlo,monospace;
+    --ink:#232513; --ink2:#4a4a2c; --rust:#8f2f10;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:16px/1.5 system-ui,'Segoe UI',Roboto,sans-serif;}
+  .wrap{max-width:780px;margin:0 auto;padding:20px 16px 40px}
+  h1{font-size:22px;margin:0 0 2px;letter-spacing:.5px}
+  h1 .x{color:var(--accent)}
+  .sub{color:var(--muted);margin:0 0 18px;font-size:14px}
+
+  .inputs{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
+  .field label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:1px;
+    color:var(--muted);margin-bottom:6px}
+  .field input{width:100%;padding:13px 12px;font:17px var(--mono);color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;min-height:48px}
+  .field input::placeholder{color:#6d7059}
+  .field input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .inwrap{position:relative}
+  .inwrap input{padding-right:44px}
+  .clearbtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    width:34px;height:34px;border:none;border-radius:50%;background:transparent;
+    color:var(--muted);font-size:19px;line-height:1;cursor:pointer;
+    display:none;align-items:center;justify-content:center;padding:0}
+  .clearbtn:hover{color:var(--text);background:var(--panel2)}
+  .clearbtn:focus-visible{outline:2px solid var(--accent)}
+  .inwrap input:not(:placeholder-shown) + .clearbtn{display:flex}
+  .swap{height:48px;min-width:44px;padding:0 10px;font-size:20px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+  .swap:hover{color:var(--text);border-color:#565f3c}
+  .swap:focus-visible{outline:2px solid var(--accent)}
+
+  .hint{color:var(--muted);font-size:13px;margin:10px 2px 0}
+  .linkbtn{background:none;border:none;color:var(--accent);cursor:pointer;
+    font:inherit;padding:0;text-decoration:underline;min-height:24px}
+  .linkbtn:focus-visible{outline:2px solid var(--accent)}
+  #parseHint{color:var(--bad);font-size:13px;margin:6px 2px 0;min-height:1em}
+
+  /* ---- scope panel ---- */
+  .scope{position:relative;margin-top:16px;padding:14px 18px 16px;border-radius:20px;
+    background:radial-gradient(120% 105% at 50% 40%, #d8c9a0 0%, #c3b28a 48%,
+      #a5926b 78%, #7c6d4e 100%);
+    color:var(--ink);box-shadow:0 10px 30px rgba(0,0,0,.45);
+    font-family:var(--mono)}
+  .scope::after{content:'';position:absolute;inset:0;border-radius:inherit;
+    box-shadow:inset 0 0 70px rgba(30,25,10,.4);pointer-events:none}
+  .c{position:absolute;width:26px;height:26px;border:0 solid var(--ink);opacity:.8}
+  .c1{top:10px;left:10px;border-top-width:3px;border-left-width:3px}
+  .c2{top:10px;right:10px;border-top-width:3px;border-right-width:3px}
+  .c3{bottom:10px;left:10px;border-bottom-width:3px;border-left-width:3px}
+  .c4{bottom:10px;right:10px;border-bottom-width:3px;border-right-width:3px}
+
+  .tapewrap{margin:4px 6px 0}
+  .tape{width:100%;height:auto;display:block}
+  .tick{stroke:var(--ink);stroke-width:1.6;fill:none}
+  .tlabs text{fill:var(--ink);font-size:13px;opacity:.75;font-family:var(--mono)}
+  .tapebox{fill:rgba(22,24,13,.88);stroke:#efe8d0;stroke-width:1.5}
+  .tapeval{fill:#f2ecd6;font-size:15px;font-weight:700;font-family:var(--mono)}
+
+  .mid{display:grid;grid-template-columns:130px 1fr 150px;gap:8px;
+    align-items:center;min-height:330px;margin-top:4px}
+  .ladder{width:120px;height:300px;display:block;margin:0 auto}
+  .ltick{stroke:var(--ink);stroke-width:1.5;fill:none}
+  .llabs text{fill:var(--ink);font-size:12px;opacity:.75;font-family:var(--mono)}
+  .markbg{fill:#bfae83}
+  .markline{stroke:var(--rust);stroke-width:3}
+  .marktext{fill:var(--rust);font-size:15px;font-weight:700;font-family:var(--mono)}
+
+  .center{display:flex;flex-direction:column;align-items:center}
+  .reticle{stroke:var(--ink);stroke-width:2.5;fill:none;stroke-linecap:round}
+  .reticle .dot{fill:var(--ink);stroke:none}
+  .readouts{display:flex;align-items:baseline;justify-content:center;gap:16px;margin-top:8px}
+  .ro{display:flex;align-items:baseline;gap:7px}
+  .lab{font-size:11px;letter-spacing:2px;color:var(--ink2);font-weight:700}
+  .big{font:700 clamp(44px,10vw,68px)/1 var(--mono);color:#1f2110}
+  .unitSm{font-size:20px;color:var(--ink2);font-weight:700}
+  .rodiv{width:1px;align-self:stretch;background:rgba(35,37,19,.35)}
+
+  .deltas{font-size:12.5px;color:var(--ink);text-align:right;line-height:2.1;margin-right:2px}
+  .deltas span{display:inline-block;min-width:52px;margin-right:8px;text-align:left;
+    color:var(--ink2);font-size:10.5px;letter-spacing:1px;font-weight:700}
+  .deltas div{border-bottom:1px dashed rgba(35,37,19,.25)}
+
+  .botrow{display:flex;justify-content:space-between;align-items:flex-end;
+    gap:14px;margin-top:8px}
+  .mapbox{text-align:center;position:relative}
+  #map{width:150px;height:150px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
+  .mapbox.dim #map{opacity:.45}
+  .scale{color:var(--ink2);font-size:11px;margin-top:4px;font-family:var(--mono)}
+  #mapTip{position:absolute;left:50%;bottom:calc(100% - 8px);transform:translateX(-50%);
+    background:#15170d;color:#ece7d2;border:1px solid var(--accent);border-radius:6px;
+    padding:5px 9px;font:12px var(--mono);white-space:nowrap;display:none;z-index:5;
+    pointer-events:none;text-align:center}
+  #mapTip b{color:var(--accent)}
+  .hmark{cursor:pointer}
+
+  .badge{background:#15170d;color:#ece7d2;border:1px solid #3a3f26;border-radius:6px;
+    padding:10px 14px;font-family:var(--mono);text-align:left;max-width:60%}
+  .badge b{font-size:15px;letter-spacing:1.5px;display:block}
+  .badge small{display:block;font-size:12px;opacity:.8;margin-top:3px}
+  .badge.ok{border-color:#7ba14e}
+  .badge.arty{border-color:#c8973f}
+  .badge.warn,.badge.bad{border-color:#b0553c}
+
+  .flip{display:flex;gap:8px;align-items:center;justify-content:flex-end;color:var(--muted);
+    font-size:13px;margin-top:12px;cursor:pointer}
+
+  .modes{display:flex;width:max-content;margin:0 0 6px;border:1px solid var(--line);
+    border-radius:10px;overflow:hidden}
+  .mode{border:none;background:var(--panel);color:var(--muted);cursor:pointer;
+    font:600 13.5px system-ui,'Segoe UI',sans-serif;padding:10px 18px;min-height:42px}
+  .mode+.mode{border-left:1px solid var(--line)}
+  .mode:hover{color:var(--text)}
+  .mode.on{background:var(--panel2);color:var(--accent)}
+  .mode:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  .modenote{color:var(--muted);font-size:13px;margin:0 0 14px}
+
+  #histList{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
+  .histrow{display:grid;grid-template-columns:auto auto 1fr auto auto;gap:10px;align-items:baseline;
+    padding:7px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;
+    font-family:var(--mono);font-size:13px;background:var(--panel2)}
+  .histrow:hover,.histrow:focus-visible{border-color:var(--accent);outline:none}
+  .histrow b{color:var(--accent)}
+  .histrow .t{color:var(--muted);font-size:11px}
+  .hcell{display:flex}
+  .histempty{color:var(--muted);font-size:13px;font-family:var(--mono);margin:4px 0 10px}
+  .hlab{background:rgba(255,184,77,.12);border:1px solid rgba(255,184,77,.35);color:var(--accent);
+    border-radius:6px;padding:1px 7px;font-size:12px;white-space:nowrap}
+  .hedit{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:14px;
+    padding:2px 6px;border-radius:6px;min-width:28px;min-height:28px;align-self:center}
+  .hedit:hover{color:var(--accent);background:var(--panel)}
+  .hedit:focus-visible{outline:2px solid var(--accent)}
+  .heditor{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px;
+    border:1px dashed var(--line);border-radius:8px;background:var(--panel2);margin-top:2px}
+  .hsyms{display:flex;gap:4px}
+  .hsym{width:34px;height:34px;font-size:17px;border:1px solid var(--line);border-radius:8px;
+    background:var(--panel);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+  .hsym.on{border-color:var(--accent);background:rgba(255,184,77,.15)}
+  .hsym:focus-visible{outline:2px solid var(--accent)}
+  .hword{flex:1;min-width:120px;padding:8px 10px;font:13px var(--mono);color:var(--text);
+    background:var(--panel);border:1px solid var(--line);border-radius:8px}
+  .hword:focus-visible{outline:2px solid var(--accent)}
+  .hbtn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;
+    padding:7px 12px;cursor:pointer;font:13px system-ui,sans-serif}
+  .hbtn:hover{border-color:var(--accent)}
+  .hbtn:focus-visible{outline:2px solid var(--accent)}
+
+  details{margin-top:14px;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:6px 18px}
+  summary{cursor:pointer;font-weight:600;padding:10px 0;color:var(--text)}
+  summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  table{border-collapse:collapse;width:100%;margin:4px 0 12px;font-size:14px}
+  td{padding:5px 4px;border-bottom:1px solid var(--line)}
+  td:last-child{font-family:var(--mono);text-align:right;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  .note{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .ref ul{margin:0 0 12px;padding-left:20px;font-size:14px}
+  .ref li{margin-bottom:6px}
+  .ref b{color:var(--accent)}
+
+  @media(max-width:640px){
+    .mid{grid-template-columns:1fr;min-height:0}
+    .ladwrap,.deltas{display:none}
+    .botrow{flex-direction:column;align-items:center}
+    .badge{max-width:100%;text-align:center}
+    .flip{justify-content:center}
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <h1><span class="x">✛</span> Mortar Calculator</h1>
+    <p class="sub">Wardogs · range and direction from two coordinate pairs</p>
+  </header>
+
+  <div class="modes" role="group" aria-label="Weapon mode">
+    <button type="button" id="modeMortar" class="mode on" aria-pressed="true">L81 Mortar</button>
+    <button type="button" id="modeArty" class="mode" aria-pressed="false">Artillery Tank</button>
+  </div>
+  <p class="modenote" id="modeNote"></p>
+
+  <section class="inputs" aria-label="Coordinates">
+    <div class="field">
+      <label for="gun">Gun position</label>
+      <div class="inwrap">
+        <input id="gun" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="98.43, 110.38">
+        <button type="button" class="clearbtn" data-for="gun" aria-label="Clear gun position" title="Clear gun position">×</button>
+      </div>
+    </div>
+    <button id="swap" class="swap" aria-label="Swap gun and target" title="Swap gun and target">⇄</button>
+    <div class="field">
+      <label for="target">Target position</label>
+      <div class="inwrap">
+        <input id="target" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="94.53, 109.03">
+        <button type="button" class="clearbtn" data-for="target" aria-label="Clear target position" title="Clear target position">×</button>
+      </div>
+    </div>
+  </section>
+  <p class="hint">Paste straight from chat (Mark Coordinates). Two pairs pasted into one box split automatically. Zoom all the way in before marking, or you lose decimals. <button id="example" class="linkbtn">Load example</button></p>
+  <p id="parseHint" role="status"></p>
+
+  <section class="result scope" aria-live="polite">
+    <i class="c c1"></i><i class="c c2"></i><i class="c c3"></i><i class="c c4"></i>
+
+    <div class="tapewrap" id="tape"></div>
+
+    <div class="mid">
+      <div class="ladwrap" id="ladder"></div>
+
+      <div class="center">
+        <svg width="120" height="120" viewBox="0 0 120 120" class="reticle" aria-hidden="true">
+          <path d="M60 8v16M50 26h20"/>
+          <path d="M60 112v-16M50 94h20"/>
+          <path d="M28 46V34h12M92 46V34H80"/>
+          <path d="M28 74v12h12M92 74v12H80"/>
+          <path d="M46 48v24M46 48h-7M46 72h-7"/>
+          <path d="M74 48v24M74 48h7M74 72h7"/>
+          <rect x="53" y="53" width="14" height="14" transform="rotate(45 60 60)"/>
+          <circle class="dot" cx="60" cy="60" r="2.4"/>
+        </svg>
+        <div class="readouts">
+          <div class="ro"><span class="lab">RNG</span><span class="big" id="rangeVal">—</span><span class="unitSm" id="unit" hidden>m</span></div>
+          <div class="rodiv"></div>
+          <div class="ro"><span class="lab">DIR</span><span class="big" id="bearingVal">—</span><span class="unitSm" id="dirUnit" hidden></span></div>
+        </div>
+      </div>
+
+      <div class="deltas" id="deltas"></div>
+    </div>
+
+    <div class="botrow">
+      <div class="mapbox" id="mapbox">
+        <div id="mapTip"></div>
+        <svg id="map" viewBox="0 0 150 150" role="img" aria-label="Relative position diagram"></svg>
+        <div class="scale" id="scaleNote"></div>
+      </div>
+      <div class="badge" id="weapon" hidden></div>
+    </div>
+  </section>
+
+  <label class="flip"><input type="checkbox" id="flipY"> Map Y axis points down (tick if the mini map looks mirrored)</label>
+
+  <details id="histBox">
+    <summary>History</summary>
+    <p class="note">Your last calculations this session. Click a row to load it back, tap ✎ to give it a symbol or short word. Cleared automatically when the app closes.</p>
+    <div id="histList"></div>
+    <p style="margin:0 0 12px"><button id="clearHist" class="linkbtn">Clear history now</button></p>
+  </details>
+
+  <details open>
+    <summary>Math</summary>
+    <table id="working"></table>
+    <p class="note">Minus signs don't matter, squaring removes them. Bearing is measured clockwise from map North (Y+): bearing = atan2(ΔX, ΔY).</p>
+  </details>
+
+  <details class="ref">
+    <summary>Quick reference</summary>
+    <ul>
+      <li><b>L81 Mortar</b>: up to ~700 m. Load up to 3 shells with R. 30 ammo per shell, 90 for a full barrage. Unlock: first hour. Cost: 91 building supplies plus hammer swings.</li>
+      <li><b>Artillery Tank</b>: 750 m minimum, ~2,700 m maximum effective range. Quick-time-event reload. Much larger blast. Under 750 m it cannot reach, that's the mortar's job.</li>
+      <li><b>Artillery Tank mode</b> (toggle above): the mini map grows to fit the shot and the badge judges range against the tank's 750 to 2,700 m envelope instead of the mortar's. Distance and direction use the exact same maths for both guns: Pythagoras on the map coordinates, × 100 for metres. The only difference is the envelope the shot must fall inside.</li>
+      <li>Aim: middle-click the target to drop the white diamond, centre the diamond in your view, set the RNG slider. Between two notches? Split the difference.</li>
+      <li>Load 3 shells before bombarding. Press C to skip the killcam. Reload during the killcam to keep continuous fire. Nudge aim between shells to spread damage.</li>
+      <li>Terrain: shells clip towers, trees and ridges. Short on an obstacle? The maths is fine, move the gun and re-run the numbers.</li>
+      <li>Map: each small square is 10 m.</li>
+    </ul>
+  </details>
+</main>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const gunEl=$('gun'), targetEl=$('target'), flipEl=$('flipY');
+  const WINDS=['N','NE','E','SE','S','SW','W','NW'];
+
+  let mode='mortar';                       // 'mortar' | 'arty'
+  const MODE_KEY='wardogs-mortar-mode-v1';
+  const MODE_NOTES={
+    mortar:'L81 Mortar · up to about 700 m. Badge judges the shot against the mortar.',
+    arty:'Artillery Tank · 750 m minimum, about 2,700 m max. Under 750 m it cannot reach. Mini map grows to fit the shot.'
+  };
+  function applyMode(m){
+    mode=m;
+    $('modeMortar').classList.toggle('on',m==='mortar');
+    $('modeArty').classList.toggle('on',m==='arty');
+    $('modeMortar').setAttribute('aria-pressed',String(m==='mortar'));
+    $('modeArty').setAttribute('aria-pressed',String(m==='arty'));
+    $('modeNote').textContent=MODE_NOTES[m];
+    try{ localStorage.setItem(MODE_KEY, JSON.stringify(m)); }catch(e){}
+    render();
+  }
+
+  function parsePair(text){
+    if(!text) return null;
+    const m=text.match(/-?\d+(?:\.\d+)?/g);
+    if(!m||m.length<2) return null;
+    return {x:+m[0], y:+m[1], extra:m.length>2};
+  }
+
+  function fmt(n,d){
+    if(!isFinite(n)) return '—';
+    let s=n.toFixed(d==null?2:d);
+    if(s.includes('.')) s=s.replace(/0+$/,'').replace(/\.$/,'');
+    if(+s===0) s='0';
+    return s;
+  }
+
+  function bearingOf(dx,dy){
+    return (Math.atan2(dx,dy)*180/Math.PI+360)%360;
+  }
+
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, c=>(
+      {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function weaponFor(r){
+    if(mode==='arty'){
+      if(r<750)   return {cls:'warn',main:'BELOW MIN',   sub:'Under the 750 m artillery minimum · reposition closer'};
+      if(r<=2700) return {cls:'arty',main:'ARTILLERY TANK', sub:'In range · much larger blast'};
+      return {cls:'bad', main:'OUT OF RANGE', sub:'Past artillery max (2,700 m) · reposition the gun'};
+    }
+    if(r<=700)  return {cls:'ok',  main:'L81 MORTAR', sub:'1 shell = 30 ammo supplies'};
+    if(r<=2700) return {cls:'warn',main:'DEAD ZONE',  sub:'Past mortar max (700 m), under artillery min (750 m)'};
+    return {cls:'bad', main:'OUT OF RANGE', sub:'Past artillery max (2,700 m) · reposition the gun'};
+  }
+
+  function niceStep(t){
+    const c=[0.02,0.05,0.1,0.2,0.5,1,2,5,10,20,50];
+    for(const s of c) if(s>=t) return s;
+    return 100;
+  }
+
+  /* compass tape, like the game's top strip: boxed bearing in the centre */
+  function tapeSVG(b,card){
+    const W=640,H=58,cx=W/2,ppd=6.8;
+    let ticks='',labels='';
+    const start=Math.ceil((b-50)/2)*2;
+    for(let d=start;d<=b+50;d+=2){
+      const x=cx+(d-b)*ppd;
+      if(x<6||x>W-6) continue;
+      const norm=((d%360)+360)%360;
+      const h=norm%15===0?15:norm%5===0?10:5;
+      ticks+=`M${x.toFixed(1)},${46-h}L${x.toFixed(1)},46 `;
+      if(norm%15===0 && x>34 && x<W-34 && (x<cx-62||x>cx+62))
+        labels+=`<text x="${x.toFixed(1)}" y="14" text-anchor="middle">${norm}</text>`;
+    }
+    const box=`<rect x="${cx-47}" y="2" width="94" height="26" rx="3" class="tapebox"/>`+
+      `<text x="${cx}" y="20.5" text-anchor="middle" class="tapeval">${Math.round(b)%360} ${card}</text>`;
+    return `<svg class="tape" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`+
+      `<path d="${ticks}" class="tick"/><g class="tlabs">${labels}</g>${box}</svg>`;
+  }
+
+  /* RNG ladder, like the game's left scale: exact range marked in rust */
+  function ladderSVG(range){
+    const W=120,H=300,cy=H/2,ppm=1.05,half=cy/ppm;
+    let ticks='',labels='';
+    for(let m=Math.ceil((range-half)/10)*10;m<=range+half;m+=10){
+      if(m<0) continue;
+      const y=cy-(m-range)*ppm;
+      const len=m%100===0?17:m%50===0?11:5;
+      ticks+=`M62,${y.toFixed(1)}l${len},0 `;
+      if(m%100===0 && Math.abs(m-range)>16) labels+=`<text x="56" y="${(y+4).toFixed(1)}" text-anchor="end">${m}</text>`;
+    }
+    const marker=`<rect x="0" y="${cy-11}" width="84" height="22" class="markbg"/>`+
+      `<path d="M62,${cy}l17,0" class="markline"/>`+
+      `<text x="56" y="${cy+5}" text-anchor="end" class="marktext">${fmt(range, range<100?1:0)}M</text>`;
+    return `<svg class="ladder" viewBox="0 0 ${W} ${H}">`+
+      `<path d="${ticks}" class="ltick"/><g class="llabs">${labels}</g>${marker}</svg>`;
+  }
+
+  /* Minimap: north up, centred on the gun. Mortar mode: fixed 2,500 m window.
+     Artillery mode: expands just enough to fit the shot (2,700 m reach, 500 m steps). */
+  const MAP_SPAN_M = 2500;
+  let tipHideTimer = null;
+
+  function mapSpanM(g,t){
+    if(mode!=='arty' || !g || !t) return MAP_SPAN_M;
+    const needM=2*Math.max(Math.abs(t.x-g.x),Math.abs(t.y-g.y))*100 + 700;  // shot both ways + label margin
+    return Math.min(8000, Math.max(MAP_SPAN_M, Math.ceil(needM/500)*500));
+  }
+
+  function drawMap(g,t,flip){
+    const svg=$('map'), S=150;
+    const cx=g.x, cy=g.y;                    // map centre = current gun
+    const spanM=mapSpanM(g,t);
+    const halfUnits = spanM/200;             // map units each way (1 unit = 100 m)
+    const scale=(S-20)/(spanM/100);          // px per map UNIT, 10 px margin
+    const px=x=>S/2+(x-cx)*scale;
+    const py=(y,f)=>f ? S/2+(y-cy)*scale : S/2-(y-cy)*scale;
+
+    let grid='';
+    const step=niceStep(halfUnits/4);        // grid lines across the whole view
+    for(let v=Math.ceil((cx-halfUnits)/step)*step; v<=cx+halfUnits+1e-9; v+=step)
+      grid+=`M${px(v).toFixed(1)},6L${px(v).toFixed(1)},${S-6} `;
+    for(let v=Math.ceil((cy-halfUnits)/step)*step; v<=cy+halfUnits+1e-9; v+=step){
+      const yy=py(v).toFixed(1);
+      grid+=`M6,${yy}L${S-6},${yy} `;
+    }
+
+    const x1=px(g.x),y1=py(g.y,flip),x2=px(t.x),y2=py(t.y,flip);
+    let dx=x2-x1, dy=y2-y1;
+    const len=Math.hypot(dx,dy)||1;
+    dx/=len; dy/=len;
+    const back=9, nx=-dy*3.2, ny=dx*3.2;
+    const head=`${x2.toFixed(1)},${y2.toFixed(1)} ${(x2-dx*back+nx).toFixed(1)},${(y2-dy*back+ny).toFixed(1)} ${(x2-dx*back-nx).toFixed(1)},${(y2-dy*back-ny).toFixed(1)}`;
+
+    let markers='';
+    loadHist().forEach(e=>{
+      if(!e.lab||!e.id) return;
+      const tgt=parsePair(e.tgt); if(!tgt) return;
+      const mx=px(tgt.x);
+      const my=py(tgt.y, flip);
+      if(mx<12||mx>S-12||my<12||my>S-12) return;   // outside the view window
+      const {sym,word}=labParts(e.lab);
+      const glyph = sym || (word ? word.charAt(0).toUpperCase() : '');
+      if(!glyph) return;                       // nothing visible to draw
+      markers+=`<g class="hmark" data-id="${e.id}">`+
+        `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="9.5" fill="#15170d" stroke="rgba(255,184,77,.5)" stroke-width="1"/>`+
+        `<text x="${mx.toFixed(1)}" y="${my.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#ffb84d">${esc(glyph)}</text></g>`;
+    });
+
+    const nY = flip ? S-8 : 12;
+    svg.innerHTML =
+      `<path d="${grid}" stroke="#2c3220" stroke-width="1" fill="none"/>`+
+      `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#7a7f5f" stroke-width="1.2" stroke-dasharray="4 3"/>`+
+      `<polygon points="${head}" fill="#ff6b4a"/>`+
+      `<circle cx="${x1}" cy="${y1}" r="4" fill="#9fb35c" stroke="#12140d" stroke-width="1.2"/>`+
+      `<circle cx="${x2}" cy="${y2}" r="4" fill="#ff6b4a" stroke="#12140d" stroke-width="1.2"/>`+
+      markers+
+      `<text x="${x1+6}" y="${y1-5}" ${x1>S-34?`x="${x1-6}" text-anchor="end" `:''}fill="#9fb35c" font-size="9" font-weight="700" font-family="monospace">GUN</text>`+
+      `<text x="${x2+6}" y="${y2-5}" ${x2>S-34?`x="${x2-6}" text-anchor="end" `:''}fill="#ff6b4a" font-size="9" font-weight="700" font-family="monospace">TGT</text>`+
+      `<text x="5" y="${nY}" fill="#a3a48d" font-size="9" font-family="monospace">N ${flip?'↓':'↑'}</text>`;
+
+    $('scaleNote').textContent=`grid square = ${fmt(step*100,0)} m · view ${fmt(spanM,0)} m`;
+    svg.setAttribute('aria-label',`Map view ${fmt(spanM,0)} metres, north up. Target is ${WINDS[Math.round(bearingOf(t.x-g.x, flip?-(t.y-g.y):t.y-g.y)/45)%8]} of gun`);
+    bindMarkers(flip);
+  }
+
+  function bindMarkers(flip){
+    const svg=$('map'), tip=$('mapTip');
+    svg.querySelectorAll('.hmark').forEach(m=>{
+      const id=m.dataset.id;
+      const entry=()=>loadHist().find(x=>x.id===id);
+      const show=()=>{
+        clearTimeout(tipHideTimer);
+        const e=entry();
+        const gRaw=$('gun').value.trim();
+        const g=gRaw?parsePair(gRaw):null;
+        if(!e||!g) { tip.style.display='none'; return; }
+        const tg=parsePair(e.tgt);
+        if(!tg){ tip.style.display='none'; return; }
+        const dx=tg.x-g.x, dy=tg.y-g.y;
+        const rng=Math.hypot(dx,dy)*100;
+        const b=bearingOf(dx, flip?-dy:dy);
+        const {sym,word}=labParts(e.lab);
+        tip.innerHTML=`<b>${esc(sym)}${sym&&word?' ':''}${esc(word)}</b><br>${fmt(rng,0)} m · ${Math.round(b)%360}° ${WINDS[Math.round(b/45)%8]}`;
+        tip.style.display='block';
+      };
+      const hide=()=>{ tipHideTimer=setTimeout(()=>{tip.style.display='none';},150); };
+      m.addEventListener('mouseenter',show);
+      m.addEventListener('mouseleave',hide);
+      m.addEventListener('click',ev=>{
+        ev.stopPropagation();
+        const e=entry(); if(!e) return;
+        gunEl.value=e.gun; targetEl.value=e.tgt; render();
+      });
+    });
+  }
+
+  function clearMap(){
+    $('map').innerHTML=`<text x="75" y="78" text-anchor="middle" fill="#6d7059" font-size="9" font-family="monospace">waiting for coordinates</text>`;
+    $('scaleNote').textContent='';
+    $('mapbox').classList.add('dim');
+    $('mapTip').style.display='none';
+  }
+
+  let pasteBox=null;
+
+  function render(){
+    // 4 numbers pasted into one box (other box empty) -> split into gun + target.
+    // Gated on paste so typing a 4th number by hand doesn't yank text mid-edit.
+    if(pasteBox){
+      const other = pasteBox===gunEl ? targetEl : gunEl;
+      const nums = pasteBox.value.match(/-?\d+(?:\.\d+)?/g) || [];
+      if(!other.value.trim() && nums.length>=4){
+        gunEl.value=nums.slice(0,2).join(', ');
+        targetEl.value=nums.slice(2,4).join(', ');
+        $('parseHint').textContent='';
+        pasteBox=null; save(); return render();
+      }
+      pasteBox=null;
+    }
+
+    const gRaw=gunEl.value.trim(), tRaw=targetEl.value.trim();
+    const g=parsePair(gRaw), t=parsePair(tRaw);
+    let hint='';
+    if(gRaw && g && g.extra) hint+='Gun box had more than 2 numbers, using the first two. ';
+    if(tRaw && t && t.extra) hint+='Target box had more than 2 numbers, using the first two. ';
+    if(gRaw && !g) hint+='Could not read 2 numbers from the gun box. ';
+    if(tRaw && !t) hint+='Could not read 2 numbers from the target box. ';
+    $('parseHint').textContent=hint;
+
+    if(!g || !t){
+      $('rangeVal').textContent='—'; $('unit').hidden=true;
+      $('bearingVal').textContent='—'; $('dirUnit').hidden=true;
+      $('tape').innerHTML=''; $('ladder').innerHTML='';
+      $('deltas').innerHTML='';
+      $('weapon').hidden=true;
+      $('modeNote').textContent=MODE_NOTES[mode];
+      $('working').innerHTML='';
+      clearMap();
+      save(); return;
+    }
+
+    const dx=t.x-g.x, dy=t.y-g.y;
+    const dyEff=flipEl.checked ? -dy : dy;
+    const dist=Math.hypot(dx,dy);
+    const range=dist*100;
+    const b=bearingOf(dx,dyEff);
+    const card=WINDS[Math.round(b/45)%8];
+
+    // big readouts, identical size
+    $('rangeVal').textContent=fmt(range, range<100?1:0);
+    $('unit').hidden=false; $('unit').textContent='m';
+    $('bearingVal').textContent=Math.round(b)%360;
+    $('dirUnit').hidden=false; $('dirUnit').textContent='° '+card;
+
+    $('tape').innerHTML=tapeSVG(b,card);
+    $('ladder').innerHTML=ladderSVG(range);
+    $('deltas').innerHTML=
+      `<div><span>EXACT</span>${fmt(range,1)} m</div>`+
+      `<div><span>ΔX</span>${fmt(dx)}</div>`+
+      `<div><span>ΔY</span>${fmt(dy)}</div>`;
+
+    const w=weaponFor(range);
+    const wEl=$('weapon');
+    wEl.hidden=false; wEl.className='badge '+w.cls;
+    wEl.innerHTML=`<b>${w.main}</b><small>${w.sub}</small>`;
+
+    $('working').innerHTML=
+      `<tr><td>ΔX (target X − gun X)</td><td>${fmt(dx)}</td></tr>`+
+      `<tr><td>ΔY (target Y − gun Y)</td><td>${fmt(dy)}</td></tr>`+
+      `<tr><td>a² + b²</td><td>${fmt(dx*dx+dy*dy,4)}</td></tr>`+
+      `<tr><td>√(a² + b²)</td><td>${fmt(dist,4)}</td></tr>`+
+      `<tr><td>× 100 = range</td><td>${fmt(range,1)} m</td></tr>`+
+      `<tr><td>Direction (clockwise from N)</td><td>${fmt(b,1)}° ${card}</td></tr>`;
+
+    drawMap(g,t,flipEl.checked);
+    scheduleHistory(gRaw,tRaw,range,b,card);
+    save();
+  }
+
+  const HKEY='wardogs-mortar-hist-v1';
+  const HSYMS=['★','◆','✚','▲','●','■','⌂','⚙'];
+  let histTimer=null, histHadItems=false, openEditorId=null, editorFocusPending=false;
+  function loadHist(){
+    let h=[];
+    try{ h=JSON.parse(sessionStorage.getItem(HKEY)||'[]')||[]; }catch(e){ h=[]; }
+    let dirty=false;
+    h.forEach(e=>{
+      if(e && !e.id){ e.id=Date.now().toString(36)+Math.random().toString(36).slice(2,7); dirty=true; }
+    });
+    if(dirty){ try{ sessionStorage.setItem(HKEY, JSON.stringify(h)); }catch(e){} }
+    return h;
+  }
+  function saveHist(h){ try{ sessionStorage.setItem(HKEY, JSON.stringify(h)); }catch(e){} }
+  function scheduleHistory(gun,tgt,range,b,card){
+    clearTimeout(histTimer);
+    histTimer=setTimeout(()=>{
+      const h=loadHist();
+      const i=h.findIndex(e=>e.gun===gun && e.tgt===tgt);
+      let lab, id;
+      if(i>=0){ lab=h[i].lab; id=h[i].id; h.splice(i,1); }
+      const entry={id: id || (Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
+        gun,tgt,range:Math.round(range*10)/10,b:Math.round(b*10)/10,card,lab,
+        at:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
+      h.unshift(entry);
+      if(h.length>20) h.length=20;
+      saveHist(h); renderHistory();
+    },700);
+  }
+  function labParts(lab){
+    if(!lab) return {sym:'',word:''};
+    const sym=HSYMS.find(s=>lab.startsWith(s))||'';
+    return {sym, word:sym?lab.slice(sym.length).trim():lab};
+  }
+  function renderHistory(){
+    const h=loadHist(), box=$('histList');
+    if(!h.length){
+      box.innerHTML='<div class="histempty">No calculations yet this session.</div>';
+      histHadItems=false; openEditorId=null; return;
+    }
+    if(openEditorId!=null && !h.some(x=>x.id===openEditorId)) openEditorId=null;
+    box.innerHTML=h.map(e=>{
+      const {sym,word}=labParts(e.lab);
+      const labHtml=(sym||word)?`<span class="hlab">${esc(sym)}${sym&&word?' ':''}${esc(word)}</span>`:'';
+      return `<div class="histrow" data-id="${esc(e.id)}" role="button" tabindex="0">`+
+        `<span class="hcell">${labHtml}</span>`+
+        `<b>${fmt(e.range||0, (e.range||0)<100?1:0)} m</b>`+
+        `<span>${Math.round(e.b||0)%360}° ${esc(e.card)||''} · ${esc(e.gun)} → ${esc(e.tgt)}</span>`+
+        `<span class="t">${esc(e.at)}</span>`+
+        `<button type="button" class="hedit" data-edit="${esc(e.id)}" aria-label="Edit label" title="Edit label">✎</button></div>`;
+    }).join('');
+    const edEntry=openEditorId!=null ? h.find(x=>x.id===openEditorId) : null;
+    if(edEntry){
+      const {sym,word}=labParts(edEntry.lab);
+      box.insertAdjacentHTML('beforeend',
+        `<div class="heditor">`+
+        `<div class="hsyms" role="group" aria-label="Symbols">`+
+        HSYMS.map(s=>`<button type="button" class="hsym${s===sym?' on':''}" data-sym="${s}" aria-label="Symbol ${s}">${s}</button>`).join('')+
+        `</div>`+
+        `<input class="hword" type="text" maxlength="24" placeholder="short word" value="${esc(word)}" aria-label="Label text">`+
+        `<button type="button" class="hbtn" data-save="1">Save</button>`+
+        `<button type="button" class="hbtn" data-close="1">Close</button></div>`);
+    }
+    const openRow=ev=>{
+      const e=loadHist().find(x=>x.id===ev.currentTarget.dataset.id); if(!e) return;
+      gunEl.value=e.gun; targetEl.value=e.tgt; render();
+    };
+    box.querySelectorAll('.histrow').forEach(r=>{
+      r.addEventListener('click',openRow);
+      r.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); openRow(ev); } });
+    });
+    box.querySelectorAll('.hedit').forEach(btn=>{
+      btn.addEventListener('click',ev=>{
+        ev.stopPropagation();
+        const id=btn.dataset.edit;
+        openEditorId=(openEditorId===id)?null:id;
+        editorFocusPending=(openEditorId!==null);
+        renderHistory();
+      });
+    });
+    const ed=box.querySelector('.heditor');
+    if(ed){
+      ed.addEventListener('click',ev=>ev.stopPropagation());
+      ed.querySelectorAll('.hsym').forEach(s=>{
+        s.addEventListener('click',()=>{
+          const on=s.classList.contains('on');
+          ed.querySelectorAll('.hsym').forEach(x=>x.classList.remove('on'));
+          if(!on) s.classList.add('on');
+        });
+      });
+      const commit=()=>{
+        const h=loadHist();
+        const target=h.find(x=>x.id===openEditorId);
+        if(!target) return;
+        const on=ed.querySelector('.hsym.on');
+        const word=ed.querySelector('.hword').value.trim().slice(0,24);
+        const sym=on?on.dataset.sym:'';
+        target.lab=(sym||word)?(sym+ (sym&&word?' ':'') + word):undefined;
+        saveHist(h);
+        openEditorId=null;
+        editorFocusPending=false;
+        renderHistory();
+        render();            // refresh map markers with the new/changed label
+      };
+      ed.querySelector('[data-save]').addEventListener('click',commit);
+      ed.querySelector('.hword').addEventListener('keydown',ev=>{ if(ev.key==='Enter') commit(); });
+      ed.querySelector('[data-close]').addEventListener('click',()=>{ openEditorId=null; editorFocusPending=false; renderHistory(); });
+      const w=ed.querySelector('.hword');
+      if(editorFocusPending){ w.focus(); editorFocusPending=false; }
+    }
+    if(!histHadItems){ $('histBox').open=true; histHadItems=true; }
+  }
+
+  const KEY='wardogs-mortar-v1';
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify({
+      gun:gunEl.value, target:targetEl.value, flip:flipEl.checked, mode:mode
+    })); }catch(e){}
+  }
+  function load(){
+    try{
+      const s=JSON.parse(localStorage.getItem(KEY)||'null');
+      if(!s) return;
+      gunEl.value=s.gun||''; targetEl.value=s.target||'';
+      flipEl.checked=!!s.flip;
+      if(s.mode==='arty') mode='arty';
+    }catch(e){}
+  }
+
+  $('swap').addEventListener('click',()=>{
+    const tmp=gunEl.value; gunEl.value=targetEl.value; targetEl.value=tmp; render();
+  });
+  $('example').addEventListener('click',()=>{
+    gunEl.value='98.43, 110.38'; targetEl.value='94.53, 109.03'; render();
+  });
+  gunEl.addEventListener('input',render);
+  targetEl.addEventListener('input',render);
+  gunEl.addEventListener('paste',()=>{pasteBox=gunEl;});
+  targetEl.addEventListener('paste',()=>{pasteBox=targetEl;});
+  flipEl.addEventListener('change',render);
+  $('modeMortar').addEventListener('click',()=>applyMode('mortar'));
+  $('modeArty').addEventListener('click',()=>applyMode('arty'));
+  document.querySelectorAll('.clearbtn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const inp=$(btn.dataset.for);
+      inp.value=''; pasteBox=null; render(); inp.focus();
+    });
+  });
+
+  $('clearHist').addEventListener('click',()=>{ clearTimeout(histTimer); saveHist([]); renderHistory(); render(); });
+
+  load();
+  $('modeMortar').classList.toggle('on',mode==='mortar');
+  $('modeArty').classList.toggle('on',mode==='arty');
+  $('modeMortar').setAttribute('aria-pressed',String(mode==='mortar'));
+  $('modeArty').setAttribute('aria-pressed',String(mode==='arty'));
+  $('modeNote').textContent=MODE_NOTES[mode];
+  render();
+  renderHistory();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# Build artifacts
+dist/
+build/
+*.spec
+.build-venv/
+.staging/
+_internal/
+
+# Compiled / binaries
+*.exe
+*.pyd
+*.dll
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+
+# OS junk
+Thumbs.db
+Desktop.ini
+.DS_Store
